@@ -65,7 +65,7 @@ class build_dataset(Dataset):
             img = np.transpose(data["image"], (2,0,1)) # [c, h, w]
             label = self.labels[index]
 
-            return torch.tensor(img), torch.tensor(int(label))
+            return torch.tensor(img), torch.tensor(int(label)), img_name
         
         else:
             data = self.transforms(image=img)
@@ -79,7 +79,7 @@ def build_dataloader(df, fold, data_transforms, CFG):
     valid_df = df.query("fold==@fold").reset_index(drop=True)
 
     train_dataset = build_dataset(train_df, transforms=data_transforms["train"], train_val_flag=True)
-    valid_dataset = build_dataset(valid_df, transforms=data_transforms["vaild"], train_val_flag=True)
+    valid_dataset = build_dataset(valid_df, transforms=data_transforms["valid"], train_val_flag=True)
 
     train_dataloader = DataLoader(train_dataset, batch_size=CFG.train_bs, num_workers=0, shuffle=True, pin_memory=True, drop_last=False)
     valid_dataloader = DataLoader(valid_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
@@ -107,6 +107,22 @@ def build_loss():
     return {"CELoss":CELoss}
 
 
-def build_metric():
-
-    pass
+def build_metric(preds, valids):
+    """
+        preds：submission
+        valids：labels
+    """
+    print("a")
+    tampers = valids[valids[:, 1] == 1]
+    print("b")
+    untampers = valids[valids[:, 1] == 0]
+    print("c")
+    pred_tampers = preds[np.in1d(preds[:, 0], tampers[:, 0])]
+    print("d")
+    pred_untampers = preds[np.in1d(preds[:, 0], untampers[:, 0])]
+    print("e")
+    thres = np.percentile(pred_untampers[:, 1], np.arange(90, 100, 1))
+    print("f")
+    recall = np.mean(np.greater(pred_tampers[:, 1][:, np.newaxis], thres).mean(axis=0))
+    
+    return recall * 100

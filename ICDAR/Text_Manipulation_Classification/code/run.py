@@ -17,8 +17,8 @@ parser.add_argument("--test_img_paths", type=str, default="../data/imgs/")
 # hyper-parameter
 parser.add_argument("--n_fold", type=int, default=4)
 parser.add_argument("--img_size", nargs='+', default=[224,224])
-parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=256)
-parser.add_argument("--test_bs", help="Batch size for test", type=int, default=256*2)
+parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=128)
+parser.add_argument("--test_bs", help="Batch size for test", type=int, default=64*2)
 # model parameter
 parser.add_argument("--backbone", help="BackBone for pre-training", type=str, default="efficientnet_b0")
 parser.add_argument("--num_classes", type=int, default=2)
@@ -65,24 +65,26 @@ def train_entry(CFG):
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, CFG.lr_drop)
         loss_dict = build_loss()
 
-        best_val_acc = 0
+        best_val_recall = 0
         best_epoch = 0
 
         for epoch in range(CFG.epoch):
             start_time = time.time()
-            train(model, train_dataloader, optimizer, loss_dict, CFG)
-            lr_scheduler.step()
-            val_acc = valid(model, valid_dataloader, CFG)
+            # train(CFG, model, train_dataloader, loss_dict, optimizer)
+            # lr_scheduler.step()
+            val_recall = valid(model, valid_dataloader, CFG)
 
-            is_best = (val_acc > best_val_acc)
-            best_val_acc = max(best_val_acc, val_acc)
+            is_best = (val_recall > best_val_recall)
+            best_val_recall = max(best_val_recall, val_recall)
+
             if is_best:
                 save_path = f"{ckpt_path}/best_fold{fold}_epoch{epoch}.pth"
                 if os.path.isfile(save_path):
                     os.remove(save_path) 
                 torch.save(model.state_dict(), save_path)
             epoch_time = time.time() - start_time
-            print("epoch:{}, time:{:.2f}s, best:{:.2f}\n".format(epoch, epoch_time, best_val_acc), flush=True)
+
+            print("epoch:{}, time:{:.2f}s, best:{:.2f}\n".format(epoch, epoch_time, best_val_recall), flush=True)
 
 
 def test_entry(CFG):
@@ -110,7 +112,7 @@ def test_entry(CFG):
 if __name__ == "__main__":
     config = CFG(args)
 
-    if args.do_train():
+    if args.do_train:
         train_entry(config)
     else:
         test_entry(config)

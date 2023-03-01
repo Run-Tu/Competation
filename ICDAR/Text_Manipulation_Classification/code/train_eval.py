@@ -2,6 +2,8 @@
 import torch
 from torch.cuda import amp
 from tqdm import tqdm
+from data_utils import build_metric
+import torch.nn.functional as F
 
 
 def train(CFG, model, train_dataloader, losses_dict, optimizer):
@@ -14,7 +16,7 @@ def train(CFG, model, train_dataloader, losses_dict, optimizer):
     losses_all, ce_all = 0, 0
 
     pbar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc='Train ')
-    for _, (img_batch, img_batch_labels) in pbar:
+    for _, (img_batch, img_batch_labels, img_name) in pbar:
         optimizer.zero_grad()
 
         img_batch = img_batch.to(CFG.device, dtype=torch.float) # [b, c, h, w]
@@ -40,16 +42,19 @@ def train(CFG, model, train_dataloader, losses_dict, optimizer):
 
 @torch.no_grad()
 def valid(model, valid_dataloader, CFG):
+    """
+        Verified once per epoch
+    """
     model.eval()
-    correct = 0
-    total = 0
 
+    preds = [] # [[img_name, y_preds]]
+    valids = []# [[img_name, y_labels]]
     pbar = tqdm(enumerate(valid_dataloader), total=len(valid_dataloader), desc='Valid ')
-    for _, (img_batch, img_batch_labels) in pbar:
+    for _, (img_batch, img_batch_labels, img_names) in pbar:
         img_batch = img_batch.to(CFG.device, dtype=torch.float) # [b, c, h, w]
         img_batch_labels = img_batch_labels.to(CFG.device)
-        
-        y_preds = model(img_batch)
+    
+        y_preds = F.softmax(model(img_batch), dim=0)
         """
             torch.max will return two tensors, 
             the first tensor is the maximum value of each row; 
@@ -57,13 +62,13 @@ def valid(model, valid_dataloader, CFG):
         """
         _, y_preds = torch.max(y_preds.data, dim=1)
 
-        correct += (y_preds==img_batch_labels).sum()
-        total += img_batch_labels.shape[0]
+        for img_name, y_pred, y_label in zip(img_names, y_preds.detach().cpu().numpy(), img_batch_labels.detach().cpu().numpy()):
+            preds.append([img_name, y_pred])
+            valids.append([img_name, y_label])
+        
+    recall = build_metric(preds, valids)
 
-    val_acc = correct/total
-    print("val_acc: {:.2f}".format(val_acc), flush=True)
-    
-    return val_acc
+    return recall
 
 
 @torch.no_grad()
