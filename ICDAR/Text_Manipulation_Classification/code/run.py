@@ -13,7 +13,7 @@ parser.add_argument("--do_train", action='store_true', default=False, help="Whet
 parser.add_argument("--ckpt_fold", type=str, default="ckpt_ddt1", help="where to save model checkpoint")
 parser.add_argument("--tampered_img_paths", type=str, default="../data/train/tampered/imgs")
 parser.add_argument("--untampered_img_paths", type=str, default="../data/train/untampered/")
-parser.add_argument("--test_img_paths", type=str, default="../data/imgs/")
+parser.add_argument("--test_img_paths", type=str, default="../data/test/")
 # hyper-parameter
 parser.add_argument("--n_fold", type=int, default=4)
 parser.add_argument("--img_size", nargs='+', default=[224,224])
@@ -92,15 +92,15 @@ def test_entry(CFG):
     test_imgs.sort(key=lambda x: x[:-4]) 
     for img_name in test_imgs:
         if img_name.endswith(".jpg"):
-            imgs_info.append(img_name, os.path.join(CFG.test_img_path, img_name), 0)
+            imgs_info.append([img_name, os.path.join(CFG.test_img_path, img_name), 0])
     
     test_df = pd.DataFrame(imgs_info, columns=col_name)
     # prepare test_dataloader
     data_transforms = build_transforms(CFG)
-    test_dataloader = build_dataloader(test_df, False, None, data_transforms)
+    test_dataloader = build_dataloader(test_df, 1, data_transforms, CFG, train=False)
     # prepare trained model for infer
     model = build_model(CFG, pretrain_flag=True)
-    ckpt_paths = ["dummy_test"] # ckpt path
+    ckpt_paths = ["../ckpt_ddt1/efficientnet_b0_img224224_bs128/best_fold1_epoch1.pth"] # ckpt path
     # submit result
     test_df = test(test_df, test_dataloader, model, ckpt_paths, CFG)
     submit_df = test_df.loc[:, ['img_name', 'pred_prob']]

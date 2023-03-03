@@ -81,7 +81,7 @@ def test(test_df, test_dataloader, model, ckpt_paths, CFG):
             model.load_state_dict(torch.load(sub_ckpt_path))
             model.eval()
             y_preds = model(img_batch) # [b, c, w, h]
-            prob = torch.nn.functionl.softmax(y_preds, dim=-1)[:,1].detach().cpu().numpy()
+            prob = F.softmax(y_preds, dim=-1)[:,1].detach().cpu().numpy()
 
             test_df.loc[test_df['img_name'].isin(img_batch_name), 'pred_prob'] = prob
 

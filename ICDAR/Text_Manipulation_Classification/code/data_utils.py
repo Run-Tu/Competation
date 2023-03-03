@@ -40,7 +40,7 @@ def build_transforms(CFG):
 class build_dataset(Dataset):
     def __init__(self, df, transforms, train_val_flag=True):
         self.df = df
-        self.train_val_flag = train_val_flag,
+        self.train_val_flag = train_val_flag
         self.img_paths = df["img_path"].tolist()
         self.img_names = df["img_name"].tolist()
         self.transforms = transforms
@@ -73,17 +73,24 @@ class build_dataset(Dataset):
             return torch.tensor(img), img_name
 
 
-def build_dataloader(df, fold, data_transforms, CFG):
-    train_df = df.query("fold!=@fold").reset_index(drop=True)
-    valid_df = df.query("fold==@fold").reset_index(drop=True)
+def build_dataloader(df, fold, data_transforms, CFG, train=True):
+    if train:
+        train_df = df.query("fold!=@fold").reset_index(drop=True)
+        valid_df = df.query("fold==@fold").reset_index(drop=True)
 
-    train_dataset = build_dataset(train_df, transforms=data_transforms["train"], train_val_flag=True)
-    valid_dataset = build_dataset(valid_df, transforms=data_transforms["valid"], train_val_flag=True)
+        train_dataset = build_dataset(train_df, transforms=data_transforms["train"], train_val_flag=True)
+        valid_dataset = build_dataset(valid_df, transforms=data_transforms["valid"], train_val_flag=True)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=CFG.train_bs, num_workers=0, shuffle=True, pin_memory=True, drop_last=False)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+        train_dataloader = DataLoader(train_dataset, batch_size=CFG.train_bs, num_workers=0, shuffle=True, pin_memory=True, drop_last=False)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+        
+        return train_dataloader, valid_dataloader
     
-    return train_dataloader, valid_dataloader
+    else:
+        test_dataset = build_dataset(df, transforms=data_transforms["valid"], train_val_flag=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+
+        return test_dataloader
 
 
 def build_model(CFG, pretrain_flag=False):

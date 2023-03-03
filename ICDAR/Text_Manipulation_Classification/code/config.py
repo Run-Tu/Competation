@@ -10,7 +10,7 @@ class CFG:
         self.ckpt_name = f"{args.backbone}_img224224_bs{args.train_bs}"  # for submit.
         self.tampered_img_paths = args.tampered_img_paths
         self.untampered_img_paths = args.untampered_img_paths
-        self.test_img_paths = args.test_img_paths
+        self.test_img_path = args.test_img_paths
         # step2: data
         self.n_fold = args.n_fold
         self.img_size = args.img_size
