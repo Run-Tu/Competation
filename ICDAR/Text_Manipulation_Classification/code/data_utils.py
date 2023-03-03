@@ -3,7 +3,6 @@ import timm
 import random
 import torch
 import numpy as np
-from config import CFG
 import albumentations as A # Augmentations
 from torch.utils.data import Dataset, DataLoader
 
@@ -108,21 +107,11 @@ def build_loss():
 
 
 def build_metric(preds, valids):
-    """
-        preds：submission
-        valids：labels
-    """
-    print("a")
-    tampers = valids[valids[:, 1] == 1]
-    print("b")
-    untampers = valids[valids[:, 1] == 0]
-    print("c")
+    tampers = valids[valids[:, 1].astype(int) == 1]
+    untampers = valids[valids[:, 1].astype(int) == 0]
     pred_tampers = preds[np.in1d(preds[:, 0], tampers[:, 0])]
-    print("d")
     pred_untampers = preds[np.in1d(preds[:, 0], untampers[:, 0])]
-    print("e")
-    thres = np.percentile(pred_untampers[:, 1], np.arange(90, 100, 1))
-    print("f")
-    recall = np.mean(np.greater(pred_tampers[:, 1][:, np.newaxis], thres).mean(axis=0))
+    thres = np.percentile(pred_untampers[:, 1].astype(int), np.arange(90, 100, 1))
+    recall = np.mean(np.greater(pred_tampers[:, 1][:, np.newaxis].astype(int), thres).mean(axis=0))
     
     return recall * 100
