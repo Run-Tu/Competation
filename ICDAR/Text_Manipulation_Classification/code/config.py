@@ -7,7 +7,7 @@ class CFG:
         self.seed = 42
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.ckpt_fold = args.ckpt_fold
-        self.ckpt_name = f"{args.backbone}_img224224_bs{args.train_bs}"  # for submit.
+        self.ckpt_name = f"{args.backbone}_img{args.img_size}_bs{args.train_bs}"  # for submit.
         self.tampered_img_paths = args.tampered_img_paths
         self.untampered_img_paths = args.untampered_img_paths
         self.test_img_path = args.test_img_paths

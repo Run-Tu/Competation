@@ -21,6 +21,21 @@ def build_transforms(CFG):
     data_transforms = {
         "train" : A.Compose([
                     A.Resize(*CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
+                    A.RandomBrightnessContrast(
+                        brightness_limit=(-0.1, 0.1),
+                        contrast_limit=0.1,
+                        p=1
+                    ),
+                    # Rotate
+                    A.RandomRotate90(p=0.5),
+                    A.HorizontalFlip(),
+                    A.VerticalFlip(),
+                    A.Blur(p=0.3),
+                    A.ImageCompression(
+                        quality_lower = 70,
+                        quality_upper = 100,
+                        p = 0.2
+                    ),
                     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], p=1.0),
                     A.HorizontalFlip(p=0.5),
                     A.VerticalFlip(p=0.5),
@@ -88,7 +103,7 @@ def build_dataloader(df, fold, data_transforms, CFG, train=True):
     
     else:
         test_dataset = build_dataset(df, transforms=data_transforms["valid"], train_val_flag=False)
-        test_dataloader = DataLoader(test_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=CFG.test_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
 
         return test_dataloader
 
