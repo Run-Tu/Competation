@@ -1,4 +1,5 @@
 import cv2
+import os
 import timm
 import random
 import torch
@@ -21,7 +22,7 @@ def set_seed(seed=42):
 def build_transforms(CFG):
     data_transforms = {
         "train" : A.Compose([
-                    A.Resize(*CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
+                    A.Resize(height=CFG.img_size, width=CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
                     A.RandomBrightnessContrast(
                         brightness_limit=(-0.1, 0.1),
                         contrast_limit=0.1,
@@ -41,11 +42,11 @@ def build_transforms(CFG):
                     A.HorizontalFlip(p=0.5),
                     A.VerticalFlip(p=0.5),
                     A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.05, rotate_limit=10, p=0.5),
-                    A.CoarseDropout(max_holes=8, max_height=CFG.img_size[0]//20, max_width=CFG.img_size[1]//20,
+                    A.CoarseDropout(max_holes=8, max_height=CFG.img_size//20, max_width=CFG.img_size//20,
                                     min_holes=5, fill_value=0, mask_fill_value=0, p=0.5),
         ], p=1.0),
         "valid" : A.Compose([
-                    A.Resize(*CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
+                    A.Resize(height=CFG.img_size, width=CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
                     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], p=1.0),
         ], p=1.0)
     }
@@ -116,7 +117,7 @@ def build_model(CFG, pretrain_flag=False):
     if CFG.backbone == "efficientnet_b0":
         model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
     if CFG.backbone == "vit_model":
-        model = vit_base_patch16_224_in21k(num_classes=CFG.num_classes)
+        model = vit_base_patch16_224_in21k(CFG)
     if pretrain_flag:
         model.load_state_dict(torch.load("pretrained_model.pth"))
     model.to(CFG.device)

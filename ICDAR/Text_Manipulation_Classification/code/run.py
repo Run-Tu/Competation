@@ -1,8 +1,9 @@
 """
+    RTX A5000
     train efficientnet_b0: 
-        python run.py --do_train --ckpt_fold ckpt_0310 -tb 32 --epoch 100 -lr 2e-4
+        python run.py --do_train --ckpt_fold ckpt_0310 -tb 32 --epoch 100 -lr 2e-4 --backbone efficientnet_b0 --img_size 768
     train VIT:
-        python run.py --do_train --ckpt_fold ckpt_0311 -tb 32 --epoch 12 -lr 2e-4 --backbone vit_model
+        python run.py --do_train --ckpt_fold ckpt_0311 -tb 16 --epoch 30 -lr 2e-4 --backbone vit_model --img_size 512
     test: python run.py --test_bs 256 --test_img_paths ../data/test/imgs
 """
 import os
@@ -34,7 +35,7 @@ parser.add_argument("--untampered_img_paths", type=str, default="../data/train/u
 parser.add_argument("--test_img_paths", type=str, default="../data/test/")
 # hyper-parameter
 parser.add_argument("--n_fold", type=int, default=4)
-parser.add_argument("--img_size", nargs='+', default=[224,224])
+parser.add_argument("--img_size", type=int, default=224)
 parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=32)
 parser.add_argument("--test_bs", help="Batch size for test", type=int, default=64*2)
 # model parameter
