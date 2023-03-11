@@ -90,8 +90,8 @@ class build_dataset(Dataset):
 
 def build_dataloader(df, fold, data_transforms, CFG, train=True):
     if train:
-        train_df = df.query("fold!=@fold").reset_index(drop=True)
-        valid_df = df.query("fold==@fold").reset_index(drop=True)
+        train_df = df[df["fold"]!=fold].reset_index(drop=True)
+        valid_df = df[df["fold"]==fold].reset_index(drop=True)
 
         train_dataset = build_dataset(train_df, transforms=data_transforms["train"], train_val_flag=True)
         valid_dataset = build_dataset(valid_df, transforms=data_transforms["valid"], train_val_flag=True)
@@ -108,15 +108,14 @@ def build_dataloader(df, fold, data_transforms, CFG, train=True):
         return test_dataloader
 
 
-def build_model(CFG, pretrain_flag=False):
+def build_model(CFG, pretrain_flag=True):
     """
         Use timm for loading pre_trained model
     """
-    if pretrain_flag:
-        pretrain_weights = "imagenet"
-    else:
-        pretrain_weights = False
     model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
+    
+    if pretrain_flag:
+        model.load_state_dict(torch.load("../efficientnet_pretrained.pth"))
     model.to(CFG.device)
 
     return model
@@ -133,7 +132,7 @@ def build_metric(preds, valids):
     untampers = valids[valids[:, 1].astype(int) == 0]
     pred_tampers = preds[np.in1d(preds[:, 0], tampers[:, 0])]
     pred_untampers = preds[np.in1d(preds[:, 0], untampers[:, 0])]
-    thres = np.percentile(pred_untampers[:, 1].astype(int), np.arange(90, 100, 1))
-    recall = np.mean(np.greater(pred_tampers[:, 1][:, np.newaxis].astype(int), thres).mean(axis=0))
+    thres = np.percentile(pred_untampers[:, 1].astype(float), np.arange(90, 100, 1))
+    recall = np.mean(np.greater(pred_tampers[:, 1][:, np.newaxis].astype(float), thres).mean(axis=0))
     
     return recall * 100

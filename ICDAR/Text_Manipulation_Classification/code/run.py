@@ -1,10 +1,9 @@
 """
-    train: python run.py --do_train --ckpt_fold ckpt_0307 -tb 32 --n_fold 4
+    train: python run.py --do_train --ckpt_fold ckpt_0310 -tb 32 --epoch 100 -lr 2e-4
     test: python run.py --test_bs 64
 """
 import os
 import time
-import json
 import logging
 import datetime
 import pandas as pd
@@ -30,8 +29,8 @@ parser.add_argument("--untampered_img_paths", type=str, default="../data/train/u
 parser.add_argument("--test_img_paths", type=str, default="../data/test/")
 # hyper-parameter
 parser.add_argument("--n_fold", type=int, default=4)
-parser.add_argument("--img_size", nargs='+', default=[512,512])
-parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=128)
+parser.add_argument("--img_size", nargs='+', default=[768,768])
+parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=32)
 parser.add_argument("--test_bs", help="Batch size for test", type=int, default=64*2)
 # model parameter
 parser.add_argument("--backbone", help="BackBone for pre-training", type=str, default="efficientnet_b0")
@@ -121,7 +120,7 @@ def test_entry(CFG):
     test_dataloader = build_dataloader(test_df, 1, data_transforms, CFG, train=False)
     # prepare trained model for infer
     model = build_model(CFG, pretrain_flag=True)
-    ckpt_paths = ["../ckpt_ddt1/efficientnet_b0_img224224_bs128/best_fold1_epoch1.pth"] # ckpt path
+    ckpt_paths = ["../ckpt_0310/efficientnet_b0_img[768, 768]_bs32/best_fold0_epoch4.pth"] # ckpt path
     # submit result
     test_df = test(test_df, test_dataloader, model, ckpt_paths, CFG)
     submit_df = test_df.loc[:, ['img_name', 'pred_prob']]
