@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import albumentations as A # Augmentations
 from torch.utils.data import Dataset, DataLoader
+from vit_model import vit_base_patch16_224_in21k
 
 
 def set_seed(seed=42):
@@ -108,14 +109,16 @@ def build_dataloader(df, fold, data_transforms, CFG, train=True):
         return test_dataloader
 
 
-def build_model(CFG, pretrain_flag=True):
+def build_model(CFG, pretrain_flag=False):
     """
         Use timm for loading pre_trained model
     """
-    model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
-    
+    if CFG.backbone == "efficientnet_b0":
+        model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
+    if CFG.backbone == "vit_model":
+        model = vit_base_patch16_224_in21k(num_classes=CFG.num_classes)
     if pretrain_flag:
-        model.load_state_dict(torch.load("../efficientnet_pretrained.pth"))
+        model.load_state_dict(torch.load("pretrained_model.pth"))
     model.to(CFG.device)
 
     return model
