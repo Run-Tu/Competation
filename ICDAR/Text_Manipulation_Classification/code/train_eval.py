@@ -34,8 +34,7 @@ def train(CFG, model, train_dataloader, losses_dict, optimizer):
         losses_all += losses.item() / img_batch.shape[0]
         current_lr = optimizer.param_groups[0]['lr']
 
-    print("lr: {:.4f}".format(current_lr), flush=True)
-    print("loss: {:.3f}".format(losses_all), flush=True)
+    return current_lr, losses_all
 
 
 @torch.no_grad()

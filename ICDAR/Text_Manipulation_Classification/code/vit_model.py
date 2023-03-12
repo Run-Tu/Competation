@@ -304,7 +304,7 @@ def vit_base_patch16_224(CFG):
     return model
 
 
-def vit_base_patch16_224_in21k(CFG, has_logits: bool = True):
+def vit_base_patch16_224_in21k(CFG, has_logits: bool = True, pretrain_flag=False):
     """
     ViT-Base model (ViT-B/16) from original paper (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
@@ -318,6 +318,16 @@ def vit_base_patch16_224_in21k(CFG, has_logits: bool = True):
                               num_heads=12,
                               representation_size=768 if has_logits else None,
                               num_classes=CFG.num_classes)
+    
+    if pretrain_flag:
+        weights_dict = torch.load("/root/autodl-tmp/jx_vit_base_patch16_224_in21k-e5005f0a.pth", map_location=CFG.device)
+        # 删除不需要的权重
+        del_keys = ['head.weight', 'head.bias'] if model.has_logits \
+            else ['pre_logits.fc.weight', 'pre_logits.fc.bias', 'head.weight', 'head.bias']
+        for k in del_keys:
+            del weights_dict[k]
+        model.load_state_dict(weights_dict, strict=False)
+
     return model
 
 

@@ -117,9 +117,8 @@ def build_model(CFG, pretrain_flag=False):
     if CFG.backbone == "efficientnet_b0":
         model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
     if CFG.backbone == "vit_model":
-        model = vit_base_patch16_224_in21k(CFG)
-    if pretrain_flag:
-        model.load_state_dict(torch.load("pretrained_model.pth"))
+        model = vit_base_patch16_224_in21k(CFG, pretrain_flag=pretrain_flag)
+        
     model.to(CFG.device)
 
     return model

@@ -23,7 +23,7 @@ TODAY = datetime.date.today()
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 DATE_FORMAT = "%Y/%m/%d %H:%M:%S %P"
 if not os.path.exists("../logs"):
-    os.makedirs("./weights")
+    os.makedirs("../logs")
 logging.basicConfig(filename=f"../logs/{TODAY}.log", level=logging.DEBUG, format=LOG_FORMAT, datefmt=DATE_FORMAT)
 
 
@@ -79,7 +79,7 @@ def train_entry(CFG):
         print(f'#'*40, flush=True)
 
         train_dataloader, valid_dataloader = build_dataloader(df, fold, data_transforms, CFG)
-        model = build_model(CFG) # model
+        model = build_model(CFG, pretrain_flag=True) # model
         optimizer = torch.optim.AdamW(model.parameters(), lr=CFG.lr, weight_decay=CFG.wd)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, CFG.lr_drop)
         loss_dict = build_loss()
@@ -87,7 +87,7 @@ def train_entry(CFG):
 
         for epoch in range(CFG.epoch):
             start_time = time.time()
-            train(CFG, model, train_dataloader, loss_dict, optimizer)
+            current_lr, losses_all = train(CFG, model, train_dataloader, loss_dict, optimizer)
             lr_scheduler.step()
             val_recall = valid(model, valid_dataloader, CFG)
 
@@ -104,11 +104,17 @@ def train_entry(CFG):
             # WeChat remind
             requests.post("https://www.autodl.com/api/v1/wechat/message/push",
                             json={"token": "1ff3eac8fd3b",
-                                "title": "ICDAR Resize512",
-                                "name": "ICDAR Resize512 Normalize",
-                                "content":f"epoch:{epoch}, best_recall:{best_val_recall}"}
-                        )
-            logging.info("epoch:{}, time:{:.2f}s, best_recall:{:.2f}\n".format(epoch, epoch_time, best_val_recall))
+                                "title": f"ICDAR Resize{CFG.img_size}",
+                                "name": f"ICDAR {CFG.backbone}",
+                                "content":f"epoch:{epoch}, \
+                                            best_recall:{best_val_recall:.6f}, \
+                                            current_lr:{current_lr:.4f}, \
+                                            loss:{losses_all:.4f}"})
+            logging.info(f"epoch:{epoch}, \
+                           time:{epoch_time}, \
+                           best_recall:{best_val_recall:.6f}, \
+                           current_lr:{current_lr:.4f}, \
+                           loss:{losses_all:.4f}")
 
 
 def test_entry(CFG):
