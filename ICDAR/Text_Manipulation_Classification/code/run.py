@@ -3,8 +3,9 @@
     train efficientnet_b0: 
         python run.py --do_train --ckpt_fold ckpt_0310 -tb 32 --epoch 100 -lr 2e-4 --backbone efficientnet_b0 --img_size 768
     train VIT:
-        python run.py --do_train --ckpt_fold ckpt_0311 -tb 16 --epoch 30 -lr 2e-4 --backbone vit_model --img_size 512
-    test: python run.py --test_bs 256 --test_img_paths ../data/test/imgs
+        python run.py --do_train --ckpt_fold ckpt_0311 -tb 16 --epoch 30 -lr 2e-4 --backbone vit_model --img_size 224
+    RTX 3090
+    test: python run.py --test_bs 2048 --test_img_paths ../data/test/imgs --backbone vit_model --img_size 224
 """
 import os
 import time
@@ -131,12 +132,12 @@ def test_entry(CFG):
     data_transforms = build_transforms(CFG)
     test_dataloader = build_dataloader(test_df, 1, data_transforms, CFG, train=False)
     # prepare trained model for infer
-    model = build_model(CFG, pretrain_flag=True)
-    ckpt_paths = ["../best_fold0_epoch10.pth"] # ckpt path
+    model = build_model(CFG, pretrain_flag=False)
+    ckpt_paths = ["/root/autodl-tmp/best_fold0_epoch3.pth"] # ckpt path
     # submit result
     test_df = test(test_df, test_dataloader, model, ckpt_paths, CFG)
     submit_df = test_df.loc[:, ['img_name', 'pred_prob']]
-    submit_df.to_csv(f"../{TODAY}_submit_dummy_epoch10.csv", header=False, index=False, sep=' ')
+    submit_df.to_csv(f"../{TODAY}_fold0_epoch3.csv", header=False, index=False, sep=' ')
 
 
 if __name__ == "__main__":
