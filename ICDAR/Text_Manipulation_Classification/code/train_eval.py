@@ -25,7 +25,8 @@ def train(CFG, model, train_dataloader, losses_dict, optimizer):
 
         with amp.autocast(enabled=True):
             y_preds = model(img_batch) 
-            losses = losses_dict["CELoss"](y_preds, img_batch_labels.long())
+            losses = 5.*losses_dict["DICELoss"](F.softmax(y_preds, dim=-1), img_batch_labels.long())+ \
+                     losses_dict["SoftCrossEntropy"](F.softmax(y_preds, dim=-1), img_batch_labels.long())
 
         scaler.scale(losses).backward()
         scaler.step(optimizer)

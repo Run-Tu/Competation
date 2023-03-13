@@ -4,6 +4,8 @@
         python run.py --do_train --ckpt_fold ckpt_0310 -tb 32 --epoch 100 -lr 2e-4 --backbone efficientnet_b0 --img_size 768
     train VIT:
         python run.py --do_train --ckpt_fold ckpt_0311 -tb 16 --epoch 30 -lr 2e-4 --backbone vit_model --img_size 224
+    train efficientent_b6
+        python run.py --do_train --ckpt_fold ckpt_0312_efficient_b6 -tb 4 --epoch 50 --backbone efficientnet_b6 --img_size 768
     RTX 3090
     test: python run.py --test_bs 2048 --test_img_paths ../data/test/imgs --backbone vit_model --img_size 224
 """
@@ -40,11 +42,11 @@ parser.add_argument("--img_size", type=int, default=224)
 parser.add_argument("-tb", "--train_bs", help="Batch size for training", type=int, default=32)
 parser.add_argument("--test_bs", help="Batch size for test", type=int, default=64*2)
 # model parameter
-parser.add_argument("--backbone", help="choose efficientnet_b0 or vit_model", type=str, default="efficientnet_b0")
+parser.add_argument("--backbone", help="[efficientnet_b0, vit_model, efficientnet_b6]", type=str, default="efficientnet_b0")
 parser.add_argument("--num_classes", type=int, default=2)
 parser.add_argument("--epoch", type=int, default=12)
-parser.add_argument("-lr", "--learning_rate", type=float, default=1e-3)
-parser.add_argument("-wd", "--weight_decay", type=float, default=1e-5)
+parser.add_argument("-lr", "--learning_rate", type=float, default=3e-4)
+parser.add_argument("-wd", "--weight_decay", type=float, default=5e-4)
 parser.add_argument("--lr_drop", help="", type=float, default=8)
 parser.add_argument("--threshold", type=float, default=0.5)
 
@@ -82,7 +84,7 @@ def train_entry(CFG):
         train_dataloader, valid_dataloader = build_dataloader(df, fold, data_transforms, CFG)
         model = build_model(CFG, pretrain_flag=True) # model
         optimizer = torch.optim.AdamW(model.parameters(), lr=CFG.lr, weight_decay=CFG.wd)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, CFG.lr_drop)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3, T_mult=2, eta_min=1e-6, last_epoch=-1)
         loss_dict = build_loss()
         best_val_recall = 0
 
@@ -107,15 +109,8 @@ def train_entry(CFG):
                             json={"token": "1ff3eac8fd3b",
                                 "title": f"ICDAR Resize{CFG.img_size}",
                                 "name": f"ICDAR {CFG.backbone}",
-                                "content":f"epoch:{epoch}, \
-                                            best_recall:{best_val_recall:.6f}, \
-                                            current_lr:{current_lr:.4f}, \
-                                            loss:{losses_all:.4f}"})
-            logging.info(f"epoch:{epoch}, \
-                           time:{epoch_time}, \
-                           best_recall:{best_val_recall:.6f}, \
-                           current_lr:{current_lr:.4f}, \
-                           loss:{losses_all:.4f}")
+                                "content":f"epoch:{epoch}, best_recall:{best_val_recall:.6f}, current_lr:{current_lr}, loss:{losses_all}"})
+            logging.info(f"epoch:{epoch}, time:{epoch_time}, best_recall:{best_val_recall:.6f}, current_lr:{current_lr}, loss:{losses_all}")
 
 
 def test_entry(CFG):

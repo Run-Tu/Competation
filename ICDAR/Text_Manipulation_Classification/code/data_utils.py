@@ -1,12 +1,16 @@
 import cv2
-import os
 import timm
 import random
 import torch
+import sys
+sys.path.append("/root/autodl-tmp/ICDAR/Text_Manipulation_Classification")
 import numpy as np
 import albumentations as A # Augmentations
 from torch.utils.data import Dataset, DataLoader
 from vit_model import vit_base_patch16_224_in21k
+from efficientnet_b6 import b6_seg_model
+from losses.dice_loss import DiceLoss
+from losses.soft_ce import SoftCrossEntropyLoss 
 
 
 def set_seed(seed=42):
@@ -23,27 +27,18 @@ def build_transforms(CFG):
     data_transforms = {
         "train" : A.Compose([
                     A.Resize(height=CFG.img_size, width=CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
-                    A.RandomBrightnessContrast(
-                        brightness_limit=(-0.1, 0.1),
-                        contrast_limit=0.1,
-                        p=1
-                    ),
                     # Rotate
-                    A.RandomRotate90(p=0.5),
-                    A.HorizontalFlip(),
-                    A.VerticalFlip(),
-                    A.Blur(p=0.3),
-                    A.ImageCompression(
-                        quality_lower = 70,
-                        quality_upper = 100,
-                        p = 0.2
-                    ),
-                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], p=1.0),
                     A.HorizontalFlip(p=0.5),
-                    A.VerticalFlip(p=0.5),
-                    A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.05, rotate_limit=10, p=0.5),
-                    A.CoarseDropout(max_holes=8, max_height=CFG.img_size//20, max_width=CFG.img_size//20,
-                                    min_holes=5, fill_value=0, mask_fill_value=0, p=0.5),
+                    A.OneOf([
+                             A.VerticalFlip(p=0.5),
+                             A.RandomRotate90(p=0.5),
+                             A.RandomBrightnessContrast(p=0.5),
+                             A.HueSaturationValue(p=0.5),
+                             A.ShiftScaleRotate(p=0.5, shift_limit=0.0625, scale_limit=0.2, rotate_limit=20),
+                             #A.CoarseDropout(p=0.2),
+                             A.Transpose(p=0.5)
+                            ]),
+                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], p=1.0),
         ], p=1.0),
         "valid" : A.Compose([
                     A.Resize(height=CFG.img_size, width=CFG.img_size, interpolation=cv2.INTER_NEAREST, p=1.0),
@@ -118,6 +113,8 @@ def build_model(CFG, pretrain_flag=False):
         model = timm.create_model(CFG.backbone, pretrained=pretrain_flag, num_classes=CFG.num_classes)
     if CFG.backbone == "vit_model":
         model = vit_base_patch16_224_in21k(CFG, pretrain_flag=pretrain_flag)
+    if CFG.backbone == "efficientnet_b6":
+        model = b6_seg_model(model_name="efficientnet-b6", n_class=CFG.num_classes)
         
     model.to(CFG.device)
 
@@ -126,8 +123,10 @@ def build_model(CFG, pretrain_flag=False):
 
 def build_loss():
     CELoss = torch.nn.CrossEntropyLoss()
+    DICELoss = DiceLoss(mode="multiclass")
+    SoftCrossEntropy = SoftCrossEntropyLoss(smooth_factor=0.1)
 
-    return {"CELoss":CELoss}
+    return {"CELoss":CELoss, "DICELoss":DICELoss, "SoftCrossEntropy":SoftCrossEntropy}
 
 
 def build_metric(preds, valids):
