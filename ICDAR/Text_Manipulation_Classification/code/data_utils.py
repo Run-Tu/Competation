@@ -3,12 +3,12 @@ import timm
 import random
 import torch
 import sys
-sys.path.append("/root/autodl-tmp/ICDAR/Text_Manipulation_Classification")
+sys.path.append("../")
 import numpy as np
 import albumentations as A # Augmentations
 from torch.utils.data import Dataset, DataLoader
 from vit_model import vit_base_patch16_224_in21k
-from efficientnet_b6 import b6_seg_model
+from efficientnet_b6 import b6_seg_cls_model, b6_seg_model
 from losses.dice_loss import DiceLoss
 from losses.soft_ce import SoftCrossEntropyLoss 
 
@@ -105,6 +105,73 @@ def build_dataloader(df, fold, data_transforms, CFG, train=True):
         return test_dataloader
 
 
+class build_dataset_seg_cls(Dataset):
+    """
+        Segmentation and Classification two tasks dataset
+    """
+    def __init__(self, df, transforms, train_val_flag=True):
+        self.df = df
+        self.train_val_flag = train_val_flag
+        self.img_paths = df["img_path"].tolist()
+        self.img_names = df["img_name"].tolist()
+        self.transforms = transforms
+
+        if self.train_val_flag:
+            self.labels = df["img_label"].tolist()
+            self.mask_paths = df["mask_path"].tolist()
+
+
+    def __len__(self):
+
+        return len(self.df)
+
+
+    def __getitem__(self, index):
+        img_name = self.img_names[index]
+        img_path = self.img_paths[index]
+        img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED) # [h, w, c]
+
+        if self.train_val_flag:
+            mask_path = self.mask_paths[index]
+            mask_gray = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+            mask = cv2.cvtColor(mask_gray, cv2.COLOR_GRAY2BGR)
+            data = self.transforms(image=img, mask=mask)
+            img = np.transpose(data["image"], (2,0,1)) # [c, h, w]
+            mask = np.transpose(data["mask"], (2,0,1))
+            label = self.labels[index]
+
+            return torch.tensor(img), torch.tensor(int(label)), torch.tensor(mask), img_name
+        
+        else:
+            data = self.transforms(image=img)
+            img = np.transpose(data["image"], (2,0,1)) # [c, h, w]
+
+            return torch.tensor(img), img_name
+
+
+def build_dataloader_seg_cls(df, fold, data_transforms, CFG, train=True):
+    """
+        Segmentation and Classification two tasks dataLoader
+    """
+    if train:
+        train_df = df[df["fold"]!=fold].reset_index(drop=True)
+        valid_df = df[df["fold"]==fold].reset_index(drop=True)
+
+        train_dataset = build_dataset_seg_cls(train_df, transforms=data_transforms["train"], train_val_flag=True)
+        valid_dataset = build_dataset_seg_cls(valid_df, transforms=data_transforms["valid"], train_val_flag=True)
+
+        train_dataloader = DataLoader(train_dataset, batch_size=CFG.train_bs, num_workers=0, shuffle=True, pin_memory=True, drop_last=False)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=CFG.valid_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+        
+        return train_dataloader, valid_dataloader
+    
+    else:
+        test_dataset = build_dataset_seg_cls(df, transforms=data_transforms["valid"], train_val_flag=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=CFG.test_bs, num_workers=0, shuffle=False, pin_memory=True, drop_last=False)
+
+        return test_dataloader
+
+
 def build_model(CFG, pretrain_flag=False):
     """
         Use timm for loading pre_trained model
@@ -114,7 +181,9 @@ def build_model(CFG, pretrain_flag=False):
     if CFG.backbone == "vit_model":
         model = vit_base_patch16_224_in21k(CFG, pretrain_flag=pretrain_flag)
     if CFG.backbone == "efficientnet_b6":
-        model = b6_seg_model(model_name="efficientnet-b6", n_class=CFG.num_classes)
+        model = b6_seg_model(CFG)
+    if CFG.backbone == "efficientnet_b6_two_task":
+        model = b6_seg_cls_model(CFG)
         
     model.to(CFG.device)
 
@@ -124,9 +193,10 @@ def build_model(CFG, pretrain_flag=False):
 def build_loss():
     CELoss = torch.nn.CrossEntropyLoss()
     DICELoss = DiceLoss(mode="multiclass")
+    SEG_DICELoss = DiceLoss(mode="multilabel")
     SoftCrossEntropy = SoftCrossEntropyLoss(smooth_factor=0.1)
 
-    return {"CELoss":CELoss, "DICELoss":DICELoss, "SoftCrossEntropy":SoftCrossEntropy}
+    return {"CELoss":CELoss, "DICELoss":DICELoss, "SoftCrossEntropy":SoftCrossEntropy, "SEG_DICELoss":SEG_DICELoss}
 
 
 def build_metric(preds, valids):

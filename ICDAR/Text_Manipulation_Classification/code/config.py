@@ -10,6 +10,8 @@ class CFG:
         self.ckpt_name = f"{args.backbone}_img{args.img_size}_bs{args.train_bs}"  # for submit.
         self.tampered_img_paths = args.tampered_img_paths
         self.untampered_img_paths = args.untampered_img_paths
+        self.tampered_mask_img_path = args.tampered_mask_img_path
+        self.untampered_mask_img_path = args.untampered_mask_img_path
         self.test_img_path = args.test_img_paths
         # step2: data
         self.n_fold = args.n_fold
@@ -19,7 +21,9 @@ class CFG:
         self.test_bs = args.test_bs
         # step3: model
         self.backbone = args.backbone
+        self.two_tasks = args.two_tasks
         self.num_classes = args.num_classes
+        self.dropout = 0.1
         # step4: optimizer
         self.epoch = args.epoch
         self.lr = args.learning_rate
