@@ -1,5 +1,11 @@
+"""
+    GPT-4推理模式可用多进程处理,数据增强时多进程报错:
+    openai.error.ServiceUnavailableError:The server is overloaded or not ready yet
+    
+    解决思路:time.sleep()
+"""
 import openai
-openai.api_key = "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"
+openai.api_key = "YOUR_OWN_KEY"
 import json
 import random
 import string
@@ -13,7 +19,7 @@ from multiprocessing import Process, Manager
 TODAY = datetime.date.today()
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 DATE_FORMAT = "%Y/%m/%d %H:%M:%S %P"
-logging.basicConfig(filename=f"../logs/{TODAY}_data_enhanced.log", level=logging.DEBUG, format=LOG_FORMAT, datefmt=DATE_FORMAT)
+logging.basicConfig(filename=f"../data_enhance_logs/{TODAY}_data_enhanced.log", level=logging.DEBUG, format=LOG_FORMAT, datefmt=DATE_FORMAT)
 
 
 def GPT4_data_enhance_one_query(data_input:str):
@@ -67,25 +73,31 @@ def GPT4_data_enhance_one_query(data_input:str):
     return gpt4_label_result, instruction
 
 
-def GPT4_multiprocess_build_new_data(train_df, shared_list, result_file_path):
-    """_summary_
+def GPT4_build_new_data(train_df, shared_list, result_file_path):
+    """GPT按领域进行数据增强
 
     Args:
-        df (_type_): _description_
-        shared_list (_type_): _description_
-        result_file_path (_type_): _description_
+        df (train_df): train Dataframe
+        shared_list (list): 记录数据增强结果
+        result_file_path (str): 结果文件路径
     """
-    for _,row in tqdm(train_df.iterrows()):
-        dict_ = {}
-        gpt4_result, instruction = GPT4_data_enhance_one_query(row['input'])
-        dict_["id"] = row["id"]*2
-        dict_["cate"] = row["cate"]
-        dict_["instruction"] = instruction
-        dict_["output"] = gpt4_result
-        dict_["kg"] = "["+gpt4_result.replace('(','[').replace(')',']')+"]"
-        with open(result_file_path, 'a') as f:
-            f.write(str(row.to_dict()) + '\n')
-        shared_list.append(dict_)
+    cates = ['建筑', '运输', '人物', '天文对象', '医学', '事件', 
+             '作品', '自然科学', '人造物件', '生物','组织', '地理地区']
+    for cate in cates:
+        for _,row in tqdm(train_df[train_df["cate"]==cate].iterrows()):
+            dict_ = {}
+            gpt4_result, instruction = GPT4_data_enhance_one_query(row['input'])
+            dict_["id"] = row["id"]*2
+            dict_["cate"] = row["cate"]
+            dict_["instruction"] = instruction
+            dict_["output"] = gpt4_result
+            dict_["kg"] = "["+gpt4_result.replace('(','[').replace(')',']')+"]"
+            with open(result_file_path, 'a') as f:
+                f.write(str(dict_) + '\n')
+            shared_list.append(dict_)
+
+        break
+    return shared_list
 
 
 def generate_random_string(length):
@@ -97,27 +109,10 @@ def generate_random_string(length):
 
 def main():
     train_df = pd.read_csv("../data/train.csv", encoding="UTF-8")
-    # 使用Manager创建共享内存对象()
-    manager = Manager()
-    shared_list = manager.list()
-    # 按照数量平均分配任务到不同的进程中
-    n_process = 8
-    chunk_size = len(train_df) // n_process
-    chunked_df = [train_df[i:i+chunk_size] for i in range(0, len(train_df), chunk_size)]
-    # 启动多个进程并发执行任务
-    processes = []
-    for chunk in tqdm(chunked_df):
-        result_file_path = f"../data/temp_file/{generate_random_string(6)}.txt"
-        p = Process(target=GPT4_multiprocess_build_new_data, args=(chunk, shared_list, result_file_path))
-        processes.append(p)
-        p.start()
-    # 等待所有的任务完成
-    for p in processes:
-        p.join()
-    # 将共享内存结果转换成dataframe
-    result = [row for row in shared_list]
-    train_enhanced_df = pd.DataFrame(result)
-    train_enhanced_df.to_csv(f"../data/result/{TODAY}_train_enhanced_df.csv", index=False, encoding="UTF-8")
+    temp_result_file_path = f"../data/temp_file/{generate_random_string(4)}.txt"
+    shared_list = GPT4_build_new_data(train_df, shared_list=[], result_file_path=temp_result_file_path)
+    train_enhanced_df = pd.DataFrame(shared_list)
+    train_enhanced_df.to_csv(f"../data/result/{TODAY}_train_enhanced_{generate_random_string(4)}_df.csv", index=False, encoding="UTF-8")
 
 
 if __name__ == "__main__":
